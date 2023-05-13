@@ -1,0 +1,5 @@
+github.com/nanvenomous/gofigure v0.0.0-20230513225047-65eaf73aea45 h1:581yZPrVUxTHRlzNZfRzG48Aw+msO9e32Rf+gOkf7gk=
+github.com/nanvenomous/gofigure v0.0.0-20230513225047-65eaf73aea45/go.mod h1:Z9SMQ5wkeUTsuaXvEgsQDd2xxMppw7ESMBv34VFgIKo=
+gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
+gopkg.in/yaml.v3 v3.0.1 h1:fxVm/GzAzEWqLHuvctI91KS9hhNmmWOoWu0XTYJS7CA=
+gopkg.in/yaml.v3 v3.0.1/go.mod h1:K4uyk7z7BCEPqu6E+C64Yfv1cQ7kz7rIZviUmN+EgEM=

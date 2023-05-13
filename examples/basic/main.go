@@ -1,15 +1,3 @@
-# gofigure
-
-Gofigure is an opinionated configuration library for go projects
-
-### Install
-```bash
-go get github.com/nanvenomous/gofigure
-```
-
-### Example
-- run this example directly at [examples/basic](https://github.com/nanvenomous/gofigure/tree/mainline/examples/basic)
-```go
 package main
 
 import (
@@ -70,21 +58,3 @@ func main() {
 		panic(err)
 	}
 }
-```
-
-### Why
-- **Functional api** (so the rest of your project **ONLY NEEDS TO CONSUME** the configuration)
-- **Explicit** yet flexible set/get methods
-    - Handle errors... or don't
-    - Return errors or return a zero value
-    - Fail due to config only when config is needed
-    - Essentially it's up to you
-- **Static** config
-    - In-code, automatic defaults that ship with your binary
-    - Config & file creation on start
-    - No need to guess if values exist (unless you want to)
-- **Convenience methods** for anywhere in application lifecycle
-    - Write everything to disk
-    - List all registered configuration files
-    - Remove all configuration files (nice for uninstall scripts)
-

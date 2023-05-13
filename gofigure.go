@@ -25,9 +25,10 @@ const (
 )
 
 type Configuration struct {
-	Entity any
-	Path   string
-	Error  error
+	Entity    any
+	Path      string
+	Directory string
+	Error     error
 }
 
 type ConfigurationsType map[ConfigType]*Configuration
@@ -85,10 +86,10 @@ func safeMakeFile(dir string, base string) (string, error) {
 	return osFilePth, nil
 }
 
-func initConfig(typ ConfigType) (string, error) {
+func initConfig(typ ConfigType) (string, string, error) {
 	var (
-		err            error
-		osPth, cfgFlNm string
+		err                            error
+		osPth, cfgFlNm, cfgDir, cfgPth string
 	)
 
 	switch typ {
@@ -101,17 +102,19 @@ func initConfig(typ ConfigType) (string, error) {
 	case LocalConfig:
 		// TODO: populate local config
 		cfgFlNm = CONFIG_FILE_NAME
-		return "", nil
+		return "", "", nil
 	}
+	cfgDir = filepath.Join(osPth, Project)
 
 	if err != nil {
-		return "", nil
+		return "", cfgDir, nil
 	}
 
-	return safeMakeFile(
-		filepath.Join(osPth, Project),
+	cfgPth, err = safeMakeFile(
+		cfgDir,
 		cfgFlNm,
 	)
+	return cfgPth, cfgDir, err
 }
 
 func hydrate(cfg *Configuration) error {
@@ -137,7 +140,7 @@ func Register[T any](typ ConfigType, ent *T) {
 		err error
 		cfg = &Configuration{Entity: ent}
 	)
-	cfg.Path, err = initConfig(typ)
+	cfg.Path, cfg.Directory, err = initConfig(typ)
 	if err != nil {
 		cfg.Error = err
 	}
@@ -146,4 +149,58 @@ func Register[T any](typ ConfigType, ent *T) {
 		cfg.Error = err
 	}
 	Configurations[typ] = cfg
+}
+
+func WriteAll() {
+	var (
+		err    error
+		cfg    *Configuration
+		typ    ConfigType
+		cfgByt []byte
+	)
+
+	for _, cfg = range Configurations {
+		if cfg.Error != nil {
+			continue
+		}
+		cfgByt, err = yaml.Marshal(&cfg.Entity)
+		if err != nil {
+			cfg.Error = err
+			continue
+		}
+
+		err = ioutil.WriteFile(cfg.Path, cfgByt, 0777)
+		if err != nil {
+			cfg.Error = err
+			continue
+		}
+	}
+	for typ = range Configurations {
+		CheckErr(typ)
+	}
+}
+
+func RemoveAll() error {
+	var (
+		err error
+		cfg *Configuration
+	)
+
+	for _, cfg = range Configurations {
+		err = os.RemoveAll(cfg.Directory)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func Where() {
+	var (
+		cfg *Configuration
+		typ ConfigType
+	)
+	for typ, cfg = range Configurations {
+		fmt.Println("[", typ, "]", cfg.Path)
+	}
 }
