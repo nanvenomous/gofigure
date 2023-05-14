@@ -73,7 +73,7 @@ func main() {
 ```
 
 ### Why
-- **Functional api** (so the rest of your project **ONLY NEEDS TO CONSUME** the configuration)
+- **Functional api** (so the rest of your project **only needs to consume** the configuration)
 - **Explicit** yet flexible set/get methods
     - Handle errors... or don't
     - Return errors or return a zero value

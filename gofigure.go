@@ -8,6 +8,7 @@ import (
 	"path"
 	"path/filepath"
 
+	"github.com/nanvenomous/exfs"
 	"gopkg.in/yaml.v3"
 )
 
@@ -24,6 +25,8 @@ const (
 	CACHE_FILE_NAME  = "cache.yml"
 )
 
+type initFunc func() (string, string, error)
+
 type Configuration struct {
 	Entity    any
 	Path      string
@@ -31,33 +34,57 @@ type Configuration struct {
 	Error     error
 }
 
+type ConfigRegistration[T any] struct {
+	Type          ConfigType
+	InitialConfig *T
+}
+
 type ConfigurationsType map[ConfigType]*Configuration
 
 var (
+	fs             = exfs.NewFileSystem()
 	Project        string
 	Configurations = ConfigurationsType{}
 )
 
 var (
+	// ErrorGeneral             = func(typ ConfigType, err error) error { return errors.New(fmt.Sprintf("%s %s", typ, err.Error())) }
 	ErrorConfigNotRegistered = func(typ ConfigType) error { return errors.New(fmt.Sprintf("%s not registered.", typ)) }
+	ErrorLocateConfig        = func(typ ConfigType, msg string) error {
+		return errors.New(fmt.Sprintf("Could not locate %s. Are you in the correct directory?\n%s", typ, msg))
+	}
 )
 
-func CheckErr(typ ConfigType) {
+func localProjectFolder() string {
+	return "." + Project
+}
+
+func handleError(err error) {
+	if err != nil {
+		fmt.Println(fmt.Sprintf("%s[%s]%s %s", "\033[31m", "ERROR", "\033[0m", err.Error()))
+		os.Exit(1)
+	}
+}
+
+func GetErr(typ ConfigType) error {
 	var (
-		err error
 		ok  bool
 		cfg *Configuration
 	)
-	var handleError = func(err error) {
-		fmt.Sprintf("%s[%s]%s %s\n", "\033[31m", "ERROR", "\033[0m", err.Error())
-		os.Exit(1)
-	}
 	if cfg, ok = Configurations[typ]; !ok {
-		handleError(ErrorConfigNotRegistered(typ))
+		return ErrorConfigNotRegistered(typ)
 	}
-	err = cfg.Error
-	if err != nil {
-		handleError(err)
+	return cfg.Error
+}
+
+func CheckErr(typ ConfigType) {
+	handleError(GetErr(typ))
+}
+
+func CheckAllErrs() {
+	var typ ConfigType
+	for typ = range Configurations {
+		CheckErr(typ)
 	}
 }
 
@@ -89,25 +116,31 @@ func safeMakeFile(dir string, base string) (string, error) {
 func initConfig(typ ConfigType) (string, string, error) {
 	var (
 		err                            error
+		osPthFunc                      func() (string, error)
 		osPth, cfgFlNm, cfgDir, cfgPth string
 	)
 
-	switch typ {
-	case GlobalConfig:
-		osPth, err = os.UserConfigDir()
-		cfgFlNm = CONFIG_FILE_NAME
-	case CacheConfig:
-		osPth, err = os.UserCacheDir()
+	if typ == CacheConfig {
+		osPthFunc = os.UserCacheDir
 		cfgFlNm = CACHE_FILE_NAME
-	case LocalConfig:
-		// TODO: populate local config
+	} else {
+		osPthFunc = os.UserConfigDir
 		cfgFlNm = CONFIG_FILE_NAME
-		return "", "", nil
 	}
-	cfgDir = filepath.Join(osPth, Project)
 
-	if err != nil {
-		return "", cfgDir, nil
+	switch typ {
+	case GlobalConfig, CacheConfig:
+		osPth, err = osPthFunc()
+		if err != nil {
+			return "", cfgDir, err
+		}
+		cfgDir = filepath.Join(osPth, Project)
+	case LocalConfig:
+		cfgDir, err = fs.FindFileInAboveCurDir(localProjectFolder())
+		if err != nil {
+			return "", cfgDir, ErrorLocateConfig(LocalConfig, err.Error())
+		}
+		return filepath.Join(cfgDir, cfgFlNm), cfgDir, nil
 	}
 
 	cfgPth, err = safeMakeFile(
@@ -131,31 +164,62 @@ func hydrate(cfg *Configuration) error {
 	return yaml.Unmarshal(fileByte, cfg.Entity)
 }
 
-func Setup(prj string) {
-	Project = prj
+func Register[T any](typ ConfigType, initialCfg *T) {
+	var curInitFunc = func() (string, string, error) {
+		return initConfig(typ)
+	}
+	Configurations[typ] = register(curInitFunc, initialCfg)
 }
 
-func Register[T any](typ ConfigType, ent *T) {
+func register[T any](intf initFunc, ent *T) *Configuration {
 	var (
 		err error
 		cfg = &Configuration{Entity: ent}
 	)
-	cfg.Path, cfg.Directory, err = initConfig(typ)
+	cfg.Path, cfg.Directory, err = intf()
 	if err != nil {
 		cfg.Error = err
+		return cfg
 	}
 	err = hydrate(cfg)
 	if err != nil {
 		cfg.Error = err
 	}
-	Configurations[typ] = cfg
+	return cfg
+}
+
+func Setup(prj string) {
+	Project = prj
+}
+
+func CreateLocalConfig[T any](initialLocCfg *T) error {
+	var createLocCfg = func() (string, string, error) {
+		var (
+			err                error
+			wd, cfgDir, cfgPth string
+		)
+		wd, err = os.Getwd()
+		if err != nil {
+			return "", "", err
+		}
+
+		cfgDir = filepath.Join(wd, localProjectFolder())
+
+		cfgPth, err = safeMakeFile(
+			cfgDir,
+			CONFIG_FILE_NAME,
+		)
+		return cfgPth, cfgDir, nil
+	}
+
+	Configurations[LocalConfig] = register(createLocCfg, initialLocCfg)
+	return Configurations[LocalConfig].Error
 }
 
 func WriteAll() {
 	var (
 		err    error
 		cfg    *Configuration
-		typ    ConfigType
 		cfgByt []byte
 	)
 
@@ -174,9 +238,6 @@ func WriteAll() {
 			cfg.Error = err
 			continue
 		}
-	}
-	for typ = range Configurations {
-		CheckErr(typ)
 	}
 }
 

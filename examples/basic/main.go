@@ -39,7 +39,7 @@ func main() {
 	var err error
 	// initialize files, set defaults
 	gofigure.Setup(PROJECT_NAME)
-	gofigure.Register(gofigure.GlobalConfig, myGlobalConfig) // gofigure supports Global, Local, and Cache configurations
+	gofigure.Register(gofigure.GlobalConfig, myGlobalConfig)
 
 	// access the config data
 	fmt.Println(Username())       // ""

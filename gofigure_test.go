@@ -89,6 +89,8 @@ func TestGlobalConfigCreation(t *testing.T) {
 // Retrieve config from disk
 func TestGlobalConfigRetrieval(t *testing.T) {
 	Setup(PROJECT_NAME)
+	Register(GlobalConfig, myGlobalConfig)
+
 	// empty the configuration entity
 	myGlobalConfig = &myGlobalConfigType{}
 	Register(GlobalConfig, myGlobalConfig)
